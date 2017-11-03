@@ -1,7 +1,7 @@
 body {
     font-family: Arial, Helvetica, sans-serif;   
     background:#73C6B6; /*#efefef;*/
-    padding:0px;
+    padding:8px;
     margin:0px;
     color:#333;
     min-height:100%;
@@ -22,7 +22,7 @@ body {
 
 .content {  
     position:fixed;
-    top:12px;
+    top:36px;
     bottom:12px;
     left:12px;
     right:12px;
