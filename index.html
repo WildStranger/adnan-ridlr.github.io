@@ -9,6 +9,7 @@
         <script src="https://rawgithub.com/makeusabrew/bootbox/master/bootbox.js"></script>
         <script src="assets/js/zepto.min.js"></script>
         <script src="assets/js/mustache.js"></script>
+        <script src="constants.js"></script>
         <script src="index.js"></script>
         <link data-require="bootstrap-css@3.1.1" data-semver="3.1.1" rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" />
         <link rel="stylesheet" href="assets/css/styles.css" />
@@ -22,10 +23,13 @@
     <body>
         <!-- <input type="button" id="refreshBookmarksButton" value="Refresh"> -->
 
+        <button id="signoutButton" class="btn" style="position: fixed; right: 30;">Logout</button>
+
         <button id="addBookmarkButton" class="btn">Add</button>
 
-        <div class="content ">
-            
+        <div id="bookmarks">
+            <div class="content ">
+            </div>
         </div>
         
     </body>
@@ -65,6 +69,12 @@
             {{#description}} <p class="description">{{{description}}}</p> {{/description}}
         </div>
     </script>
-    
+
+    <script async defer src="https://apis.google.com/js/api.js"
+      onload="this.onload=function(){};handleClientLoad()"
+      onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+
+
 </html>
         

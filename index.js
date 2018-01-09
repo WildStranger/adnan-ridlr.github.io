@@ -1,43 +1,112 @@
-
 var content, columns, compiledCardTemplate = undefined;
 var MIN_COL_WIDTH = 300;
 
-//data used to render the HTML templates
 var bookmarks = [];
+var spreadsheetId = '';
 
-//page load initialization
+// Page load initialization
 Zepto(function($){
     registerEvents();
-    getBookmarksAndRender();
 })
 
 function registerEvents() {
     $("#refreshBookmarksButton").click(function(event){
         getBookmarksAndRender();
-});
-
+    });
+    $("#signoutButton").click(function(event){
+        signOut();
+    });
     $("#addBookmarkButton").click(function(event) {
         onAddBookmarkClick();
-});
+    });
 }
 
-function getBookmarksAndRender() {
-    bookmarks = [];
+// Google client load initialilzation
+function handleClientLoad() {
+    gapi.load('client:auth2', initClient);
+}
 
-    var url = "https://sheets.googleapis.com/v4/spreadsheets/1IDneVlOZY-mZDSsy99kpwznHRUfczd6FSS7hWlFSYpg/values/Sheet1!A1:A?key=%20AIzaSyDHIhWRB0oJr4DZYT0wtyqIobllW9gRSrA";
-    $.getJSON(url, function(data) {
-        $.each(data, function(key, val) {
-            if (key == 'values') {
-                $.each(val, function(key, val) {
-                    var obj = JSON.parse(val);
-                    bookmarks.push(obj);
-                });
+/**
+ *  Initializes the API client library and sets up sign-in state
+ *  listeners.
+ */
+function initClient() {
+    gapi.client.init({
+        apiKey: API_KEY,
+        clientId: CLIENT_ID,
+        discoveryDocs: DISCOVERY_DOCS,
+        scope: SCOPES
+    }).then(function () {
+        // Handle the initial sign-in state.
+        updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+    });
+}
+
+function updateSigninStatus(isSignedIn) {
+    if (isSignedIn) {
+        lookupBookmarksDriveFile();
+    } else {
+        console.error('User not logged in');
+        signOut();
+    }
+}
+
+function signOut(event) {
+    gapi.auth2.getAuthInstance().signOut();
+    window.location.replace('login.html');
+}
+
+
+function lookupBookmarksDriveFile() {
+    gapi.client.drive.files.list({
+        'pageSize': 10,
+        'fields': "nextPageToken, files(id, name)"
+    }).then(function(response) {
+        var files = response.result.files;
+        console.log('Files count:' + files.length);
+        if (files && files.length > 0) {
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            console.log(file.name + ' (' + file.id + ')');
+
+            if (file.name == DRIVE_FILE_NAME) {
+                spreadsheetId = file.id;
+                console.log('Sheet Id: ' + spreadsheetId);
+                console.log('nextPageToken: ' + response.result.nextPageToken);
+                readBookmarksFromFile();
+                break;
             }
-        });
-            // console.log(bookmarks);
-            createView();
-        });
+        }
+    } else {
+      console.log('No files found.');
+    }
+  });
 }
+
+function readBookmarksFromFile() {
+    gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: spreadsheetId,
+    range: RANGE,
+    }).then(function(response) {
+        var result = response.result;
+        var numRows = result.values ? result.values.length : 0;
+        console.log(numRows + ' rows retrieved.');
+        if (result.values.length > 0) {
+            for (i = 0; i < result.values.length; i++) {
+                var row = result.values[i];
+                var obj = JSON.parse(row[0]);
+                bookmarks.push(obj);
+            }
+        } else {
+            console.log('No data found.');
+        }
+        console.log(bookmarks);
+        createView();
+    }, function(response) {
+        console.log('Error: ' + response.result.error.message);
+    });
+}
+
 
 function onAddBookmarkClick() {
     var modal = bootbox.dialog({
