@@ -44,7 +44,7 @@ function initClient() {
 
 function updateSigninStatus(isSignedIn) {
     if (isSignedIn) {
-        lookupBookmarksDriveFile();
+        lookupBookmarksDriveFile(null);
     } else {
         console.error('User not logged in');
         signOut();
@@ -57,30 +57,34 @@ function signOut(event) {
 }
 
 
-function lookupBookmarksDriveFile() {
+function lookupBookmarksDriveFile(nextPageToken) {
     gapi.client.drive.files.list({
+        'q': "name = '" + DRIVE_FILE_NAME + "' and mimeType = 'application/vnd.google-apps.spreadsheet'",
+        'pageToken': nextPageToken,
         'pageSize': 10,
         'fields': "nextPageToken, files(id, name)"
     }).then(function(response) {
         var files = response.result.files;
-        console.log('Files count:' + files.length);
         if (files && files.length > 0) {
-        for (var i = 0; i < files.length; i++) {
-            var file = files[i];
-            console.log(file.name + ' (' + file.id + ')');
-
-            if (file.name == DRIVE_FILE_NAME) {
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
                 spreadsheetId = file.id;
                 console.log('Sheet Id: ' + spreadsheetId);
-                console.log('nextPageToken: ' + response.result.nextPageToken);
                 readBookmarksFromFile();
                 break;
             }
         }
-    } else {
-      console.log('No files found.');
-    }
-  });
+
+        var nextPageToken = response.result.nextPageToken;
+        if (spreadsheetId == '') {
+            if (nextPageToken != null) {
+                listFiles(nextPageToken)
+            } else {
+                console.log('No files found. Creating new one');
+                createNewSheet();
+            }
+        } 
+    });
 }
 
 function readBookmarksFromFile() {
@@ -89,8 +93,13 @@ function readBookmarksFromFile() {
     range: RANGE,
     }).then(function(response) {
         var result = response.result;
-        var numRows = result.values ? result.values.length : 0;
-        console.log(numRows + ' rows retrieved.');
+
+        if (!result.values) {
+            console.log('No data found');
+            return;
+        }
+
+        console.log(result.values.length + ' rows retrieved');
         if (result.values.length > 0) {
             for (i = 0; i < result.values.length; i++) {
                 var row = result.values[i];
@@ -100,13 +109,37 @@ function readBookmarksFromFile() {
         } else {
             console.log('No data found.');
         }
-        console.log(bookmarks);
         createView();
     }, function(response) {
         console.log('Error: ' + response.result.error.message);
     });
 }
 
+/**
+* Create new sheet
+*/
+function createNewSheet() {
+    var spreadsheetBody = {
+        "properties": {
+            "title": DRIVE_FILE_NAME
+        },
+        "sheets": [
+        {
+            "properties": {
+                "title": "bookmarks"
+            }
+        }]
+    };
+
+    var request = gapi.client.sheets.spreadsheets.create({}, spreadsheetBody);
+    request.then(function(response) {
+        console.log(response.result);
+        spreadsheetId = response.result.spreadsheetId;
+        console.log('Sheet Id ' + spreadsheetId + ' created');
+    }, function(reason) {
+        console.error('error: ' + reason.result.error.message);
+    });
+}
 
 function onAddBookmarkClick() {
     var modal = bootbox.dialog({
@@ -147,6 +180,10 @@ function onAddBookmarkClick() {
 }
 
 function createView() {
+    if (bookmarks.length <= 0) {
+        return;
+    }
+
     content = $(".content");
     compiledCardTemplate = Mustache.compile( $("#card-template").html() );
     layoutColumns();
