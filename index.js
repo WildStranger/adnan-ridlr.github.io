@@ -158,25 +158,50 @@ function onAddBookmarkClick() {
                 bookmark.dateAdded = Date.now();
                 bookmark.lastModified = Date.now();
 
-                console.log(bookmark);
-                return true;
+                publishOnDriveSheet(bookmark);
             }
         },
         {
             label: "Close",
             className: "btn btn-default pull-left",
             callback: function() {
-              console.log("just do something on close");
-          }
-      }
-      ],
-      show: false,
-      onEscape: function() {
-          modal.modal("hide");
-      }
-  });
+                // Closed
+            }
+        }
+        ],
+        show: false,
+        onEscape: function() {
+            modal.modal("hide");
+        }
+    });
 
     modal.modal("show");
+}
+
+function publishOnDriveSheet(bookmark) {
+    if (spreadsheetId == '') {
+        return;
+    }
+
+    var values = [
+    [
+        JSON.stringify(bookmark)
+    ],
+    // Additional rows ...
+    ];
+    var body = {
+        values: values
+    };
+    gapi.client.sheets.spreadsheets.values.append({
+        spreadsheetId: spreadsheetId,
+        range: RANGE,
+        valueInputOption: 'RAW',
+        resource: body
+    }).then((response) => {
+        console.log('Added new data.');
+        bookmarks.push(bookmark);
+        createView();
+    });
 }
 
 function createView() {
