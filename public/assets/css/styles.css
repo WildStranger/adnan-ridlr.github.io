@@ -1,6 +1,6 @@
 body {
     font-family: Arial, Helvetica, sans-serif;   
-    background:#73C6B6; /*#efefef;*/
+    background:#ECEFF1; /*#efefef;*/
     padding:8px;
     margin:0px;
     color:#333;
@@ -109,6 +109,22 @@ body {
     vertical-align:top;
 }
 
+.float-button{
+    position:fixed;
+    width:60px;
+    height:60px;
+    bottom:40px;
+    right:40px;
+    background-color:#0C9;
+    color:#FFF;
+    border-radius:50px;
+    text-align:center;
+    box-shadow: 2px 2px 3px #999;
+}
+
+.float-button-content{
+    margin-top:22px;
+}
 
 
 
