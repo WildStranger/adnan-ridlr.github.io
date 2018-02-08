@@ -95,6 +95,11 @@ function onAddBookmarkClick() {
 }
 
 function onDeleteBookmarkClicked(guid) {
+    var result = confirm("Want to delete?");
+    if (!result) {
+        return;
+    }
+
     var index = -1;
     for (var i = 0; i < bookmarks.length; i++) {
         var bookmark = bookmarks[i];
