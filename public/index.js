@@ -56,6 +56,65 @@ function signOut(event) {
     window.location.replace('login.html');
 }
 
+function onAddBookmarkClick() {
+    var modal = bootbox.dialog({
+        message: $(".form-content").html(),
+        title: "Add new bookmark",
+        buttons: [
+        {
+            label: "Save",
+            className: "btn btn-primary pull-left",
+            callback: function() {
+                var bookmark = new Object();
+                bookmark.guid = uuidv4();
+                bookmark.title = $('form #title', '.bootbox').val();
+                bookmark.description = $('form #description', '.bootbox').val();
+                bookmark.tags = $('form #tags', '.bootbox').val();
+                bookmark.uri = $('form #uri', '.bootbox').val();
+                bookmark.dateAdded = Date.now();
+                bookmark.lastModified = Date.now();
+
+                appendNewBookmarkOnSheet(bookmark);
+            }
+        },
+        {
+            label: "Close",
+            className: "btn btn-default pull-left",
+            callback: function() {
+                // Closed
+            }
+        }
+        ],
+        show: false,
+        onEscape: function() {
+            modal.modal("hide");
+        }
+    });
+
+    modal.modal("show");
+}
+
+function onDeleteBookmarkClicked(guid) {
+    var index = -1;
+    for (var i = 0; i < bookmarks.length; i++) {
+        var bookmark = bookmarks[i];
+        if (bookmark.guid == guid) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index < 0) {
+        return;
+    }
+
+    var range = 'A' + (index + 1) // +1 as sheet starts from 1...
+    var bookmark = bookmarks[index];
+    bookmark.isDeleted = true;
+    updateBookmarkOnSheet(range, bookmarks[index]);
+
+    console.log('Delete Clicked for ' + guid + ' range: ' + range);
+}
 
 function lookupBookmarksDriveFile(nextPageToken) {
     gapi.client.drive.files.list({
@@ -70,7 +129,7 @@ function lookupBookmarksDriveFile(nextPageToken) {
                 var file = files[i];
                 spreadsheetId = file.id;
                 console.log('Sheet Id: ' + spreadsheetId);
-                readBookmarksFromFile();
+                readBookmarksFromSheet();
                 break;
             }
         }
@@ -87,7 +146,9 @@ function lookupBookmarksDriveFile(nextPageToken) {
     });
 }
 
-function readBookmarksFromFile() {
+// ---- sheet apis ----
+
+function readBookmarksFromSheet() {
     gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: spreadsheetId,
     range: RANGE,
@@ -115,9 +176,6 @@ function readBookmarksFromFile() {
     });
 }
 
-/**
-* Create new sheet
-*/
 function createNewSheet() {
     var spreadsheetBody = {
         "properties": {
@@ -141,44 +199,7 @@ function createNewSheet() {
     });
 }
 
-function onAddBookmarkClick() {
-    var modal = bootbox.dialog({
-        message: $(".form-content").html(),
-        title: "Add new bookmark",
-        buttons: [
-        {
-            label: "Save",
-            className: "btn btn-primary pull-left",
-            callback: function() {
-                var bookmark = new Object();
-                bookmark.title = $('form #title', '.bootbox').val();
-                bookmark.description = $('form #description', '.bootbox').val();
-                bookmark.tags = $('form #tags', '.bootbox').val();
-                bookmark.uri = $('form #uri', '.bootbox').val();
-                bookmark.dateAdded = Date.now();
-                bookmark.lastModified = Date.now();
-
-                publishOnDriveSheet(bookmark);
-            }
-        },
-        {
-            label: "Close",
-            className: "btn btn-default pull-left",
-            callback: function() {
-                // Closed
-            }
-        }
-        ],
-        show: false,
-        onEscape: function() {
-            modal.modal("hide");
-        }
-    });
-
-    modal.modal("show");
-}
-
-function publishOnDriveSheet(bookmark) {
+function appendNewBookmarkOnSheet(bookmark) {
     if (spreadsheetId == '') {
         return;
     }
@@ -203,6 +224,68 @@ function publishOnDriveSheet(bookmark) {
         createView();
     });
 }
+
+function updateBookmarkOnSheet(range, bookmark) {
+    if (spreadsheetId == '' || range == '') {
+        return;
+    }
+
+    var params = {
+        spreadsheetId: spreadsheetId,
+        range: range,
+        valueInputOption: 'RAW',
+    };
+
+    var values = [
+    [
+        JSON.stringify(bookmark)
+    ]
+    ];
+
+    var valueRangeBody = {
+        values: values
+    };
+
+    var request = gapi.client.sheets.spreadsheets.values.update(params, valueRangeBody);
+    request.then(function(response) {
+        console.log('Row updated ' + range);
+        createView();
+    }, function(reason) {
+        console.error('error: ' + reason.result.error.message);
+    });
+}
+
+function deleteBookmarkOnSheet(range) {
+    if (spreadsheetId == '' || range == '') {
+        return;
+    }
+
+    var params = {
+        spreadsheetId: spreadsheetId,
+        range: range,
+    };
+
+    var clearValuesRequestBody = {
+        // TODO: Add desired properties to the request body.
+    };
+
+    var request = gapi.client.sheets.spreadsheets.values.clear(params, clearValuesRequestBody);
+    request.then(function(response) {
+        console.log(response.result);
+    }, function(reason) {
+        console.error('error: ' + reason.result.error.message);
+    });
+}
+
+// ------
+
+// ---- Utility -----
+function uuidv4() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  )
+}
+// ------
 
 function createView() {
     if (bookmarks.length <= 0) {
@@ -239,6 +322,10 @@ function layoutColumns() {
     }
     
     for ( var x = 0; x < bookmarks.length; x++ ) {
+        if (bookmarks[x].isDeleted == true) {
+            continue;
+        }
+
         var html = compiledCardTemplate( bookmarks[x] );
         
         var targetColumn = x % columns_dom.length;
