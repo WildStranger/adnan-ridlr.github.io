@@ -119,12 +119,8 @@ body {
     color:#FFF;
     border-radius:50px;
     text-align:center;
+    font-size: x-large;
     box-shadow: 2px 2px 3px #999;
 }
-
-.float-button-content{
-    margin-top:22px;
-}
-
 
 
